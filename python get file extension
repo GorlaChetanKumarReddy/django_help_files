@@ -1,0 +1,2 @@
+ filename, fileformat = os.path.splitext(str(filef))
+ print(fileformat)
