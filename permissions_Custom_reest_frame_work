@@ -1,0 +1,10 @@
+class Custom_permissionclass(permissions.BasePermission):
+    message = 'Phone OTP Is Not Verified'
+    def has_permission(self, request, view):
+        us = User_More_details.objects.filter(user_id=request.user.id)
+        for u in us:
+            print(u.phone_otp_verified,'us.phone_otp_verified')
+            if u.phone_otp_verified == True:
+                return False
+            else:
+                return False
