@@ -1,0 +1,7 @@
+
+#in terminal connnect first command
+sudo su - postgres
+#for create database
+createdb mydb
+
+
