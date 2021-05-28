@@ -1,0 +1,15 @@
+class add_to_cart_data_To_pdf(APIView):
+    def get(self,request):
+        # pip install xhtml2pdf
+        template_path = 'pdfpage.html'
+        allacartdata = Cart_Data.objects.all()
+        context = {'data':allacartdata}
+        responce = HttpResponse(content_type='Application/pdf')
+        # if download
+        # responce['Content-Disposition'] = 'attachment; filename="cartdata.pdf"'
+        # if view
+        responce['Content-Disposition'] = 'filename="cartdata.pdf"'
+        template = get_template(template_path)
+        html = template.render(context)
+        pisa.CreatePDF(html,dest=responce)
+        return responce
