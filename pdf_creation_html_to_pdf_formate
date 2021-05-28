@@ -13,3 +13,45 @@ class add_to_cart_data_To_pdf(APIView):
         html = template.render(context)
         pisa.CreatePDF(html,dest=responce)
         return responce
+        
+        
+        
+        
+        
+        
+        
+        in templates#
+        
+        <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>cart all data</title>
+</head>
+<body>
+    <table>
+        <tr>
+            <th>username</th>
+            <th>Product name</th>
+            <th>image</th>
+            <th>Added date</th>
+        </tr>
+        {% for i in data %}
+        <tr>
+            <th>
+                {{ i.Customer_Id.username }}
+            </th>
+            <th>
+                {{ i.Product_Id.Name }}
+            </th>
+            <th>
+                <img src="{{ i.Product_Id.Product_Image.path }}" width="200" height="200">
+            </th>
+            <th>
+                {{ i.Product_Id.Product_Added_Date }}
+            </th>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
