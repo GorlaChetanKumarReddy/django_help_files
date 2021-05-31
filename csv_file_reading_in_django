@@ -1,0 +1,12 @@
+def add_file(request):
+    file_data = request.FILES['file_name']
+    if str(file_data).endswith('.csv'):
+        decoded_file = file_data.read().decode('utf-8').splitlines()
+        reader = csv.DictReader(decoded_file)
+        for row in reader:
+            print(row)
+            context = {'data':row}
+            return render(request,'Convert_csv_to_htmlfilr.html',context)
+    else:
+        return HttpResponseNotFound('The requested csv was not found in our server.')
+    return render(request,'Convert_csv_to_htmlfilr.html')
