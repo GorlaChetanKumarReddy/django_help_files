@@ -1,0 +1,21 @@
+def add_file_to_read_pdf_file(request):
+    import PyPDF2
+    file_data = request.FILES['file_name']
+    # creating a pdf file object
+    pdfFileObj = file_data
+
+    # creating a pdf reader object
+    pdfReader = PyPDF2.PdfFileReader(pdfFileObj)
+
+    # printing number of pages in pdf file
+    print(pdfReader.numPages)
+
+    # creating a page object
+    pageObj = pdfReader.getPage(0)
+
+    # extracting text from page
+    print(pageObj.extractText())
+    # closing the pdf file object
+    pdfFileObj.close()
+    context = {'numPages': pdfReader,'pageObjextractText':pageObj.extractText()}
+    return render(request, 'Convert_csv_to_htmlfilr.html', context)
