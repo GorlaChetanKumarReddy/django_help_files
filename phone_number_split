@@ -1,0 +1,10 @@
+import phonenumbers
+
+def split_phone_no(phone_number):
+    try:
+        parsed = phonenumbers.parse(phone_number, None)
+    except phonenumbers.NumberParseException as npe:
+        parsed = phonenumbers.parse('+91{}'.format(phone_number), None)
+    return parsed.national_number, parsed.country_code
+    
+ lead_contact_no, country_code = split_phone_no(phone_no)

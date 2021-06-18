@@ -1,0 +1,18 @@
+class FB_lead_data_creating(APIView):
+    permission_classes = (AllowAny,)
+    def post(self,request):
+        try:
+            fb_lead_data.objects.get(page_id=request.data['entry']['changes']['value']['page_id'],
+                                     lead_gen_id=request.data['entry']['changes']['value']['leadgen_id'])
+            return Response('alredy exists')
+        except:
+            fb_lead_data.objects.create(page_id=request['entry']['changes']['value']['page_id'],lead_gen_id=request['entry']['changes']['value']['leadgen_id'])
+            idd = request.data['entry']['changes']['value']['leadgen_id']
+            id = str(idd)
+            # 951195918960598
+            url = 'https://graph.facebook.com/'+id+'/'
+            headers = 'access_token=EAATdPmWpAlsBABXKdRVFIHhOWrjxFgRyMvlQTtEmSiLMA0cXVQ5dU033LK2HYWQPPnWTUyTThkbYJZCEeZC9gAw99US2ZBMwFcsZAVNI5sBx1yLDGnYWePuhxI08V2HuBh5IiJG9avtUlkoZCJFtbZBqZCHmklnDQdeEDvPXLhHfAZDZD'
+            data = requests.get(url,headers)
+            dictdata = json.loads(data.text)
+            print(dictdata,'ddd')
+            return Response(dictdata)
