@@ -1,0 +1,12 @@
+page = request.query_params.get("page")
+            if page:
+                page = int(page)
+            else:
+                page = 1
+            PAGE_SIZE = 10
+            
+            lead_obj = lead_obj.filter(assigned_lead__agent_status_id=lead_status)
+            lead_obj = lead_obj[PAGE_SIZE * (page - 1): PAGE_SIZE * page]
+            //use or not
+            result_list = AssignedLeadSerializer_1(lead_obj, many=True).data
+            return Responce(result_list)
