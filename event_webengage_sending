@@ -1,0 +1,34 @@
+def send_event_web_engage(data):
+    url = "https://api.webengage.com/v1/accounts/8261787a/events"
+
+    headers = {
+        'Authorization': 'Bearer 732c1240-720e-4e74-843e-9f32df11663e',
+        'Content-Type': 'application/json'
+    }
+
+    response = requests.request("POST", url, headers=headers, data=json.dumps(data))
+
+    print(response.text)
+
+    return "success"
+    
+    
+def webengage_thread_function(fun, arg):
+    """ Function to start webengage thread"""
+    try:
+        threading.Thread(target=fun, args=arg).start()
+    except:
+        print("send data failed")
+    
+def get_event_data(lead_id, event, date_time):
+    try:
+        data_dict = dict()
+        lead_obj = LeadInfo.objects.get(id=lead_id)
+        if lead_obj.branch is not None:
+            branch_obj = Branch.objects.get(id=lead_obj.branch.id)
+            counsellor_branch_obj = BranchRelatedCounsellor.objects.filter(branch_id=branch_obj.id)
+            data_dict["eventData"] = event_dict
+            data_dict["eventData"] = event_dict
+        send_event_web_engage(data_dict)
+//return result using   
+ webengage_thread_function(get_event_data,[lead_obj[0].id, "Application Completed", datetime.datetime.now()])
