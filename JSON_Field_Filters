@@ -1,0 +1,16 @@
+
+                    if class_status == '1':
+                        query_object['is_meeting_canceled__0__is_cancelled'] = False
+                        query_object['is_meeting_canceled__0__date'] = str(dtt.datetime.today().date())
+                    if class_status == '2':
+                        query_object['is_meeting_canceled__0__is_cancelled'] = False
+                        query_object['is_meeting_canceled__0__end_time__gte'] = 			str(dtt.datetime.now().time())
+                        yd = datetime.date.today() - datetime.timedelta(1)
+                        query_object['is_meeting_canceled__0__date__gte'] = str(yd)
+                    if class_status == '3':
+                        query_object['is_meeting_canceled__0__is_cancelled'] = False
+                        query_object['is_meeting_canceled__0__end_date__lte'] = str(dtt.datetime.today().date())
+                        query_object['is_meeting_canceled__0__start_time__lte'] = str(dtt.datetime.now().time())
+
+                    if class_status == '4':
+                        query_object['is_meeting_canceled__contains'] = [{"is_cancelled":True}]

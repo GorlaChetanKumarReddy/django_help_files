@@ -1,0 +1,211 @@
+class ManagementOnlineClassAPI2(APIView):
+    """ManagementOnlineClassAPI."""
+
+    def get(self, request):
+        """get."""
+        # import pdb
+        # pdb.set_trace()
+        request_params = self.request.query_params
+        request_user = self.request.user
+        is_super_user = request_user.is_superuser
+        module_id = self.request.query_params.get('module_id')
+
+        query_object = dict()
+        if not is_super_user:
+            roles = ErpUsers.objects.get(erp_id=self.request.user.username).roles.id
+            scope = ModuleScopePermission.objects.filter(role_id=roles, module__module_name="Viiew Class")
+            if not scope.exists():
+                query_object['tutor__user_id'] = request_user.id
+
+        if 'branch_ids' in request_params:
+            query_object[
+                'online_class__section_mapping__acad_session__branch_id__in'
+            ] = request.query_params.get("branch_ids").split(',')
+        # else:
+        #     if not is_super_user:
+        #         query_object[
+        #             'online_class__section_mapping__branch_id__in'
+        #         ] = utility.get_logged_in_user_scope_branch(
+        #             module_id,
+        #             request_user
+        #         )
+
+        if 'grade_ids' in request_params:
+            query_object[
+                'online_class__section_mapping__grade_id__in'
+            ] = request.query_params.get("grade_ids").split(',')
+        # else:
+        #     if not is_super_user:
+        #         query_object[
+        #             'online_class__section_mapping__grade_id__in'
+        #         ] = utility.get_logged_in_user_scope_grade(
+        #             module_id,
+        #             request_user
+        #         )
+
+        if 'section_mapping_ids' in request_params:
+            query_object[
+                'online_class__section_mapping__id__in'
+            ] = request.query_params.get("section_mapping_ids").split(',')
+        # else:
+        #     if not is_super_user:
+        #         query_object[
+        #             'online_class__section_mapping__id__in'
+        #         ] = utility.get_logged_in_user_scope_sections(
+        #             module_id,
+        #             request_user
+        #         )
+
+        if 'subject_id' in request_params:
+            query_object[
+                'online_class__subject__id__in'
+            ] = request.query_params.get("subject_id").split(',')
+        # else:
+        #     if not is_super_user:
+        #         query_object[
+        #             'online_class__subject__id__in'
+        #         ] = utility.get_logged_in_user_scope_subjects(
+        #             module_id,
+        #             request_user
+        #         )
+
+        if 'start_date' and 'end_date' in request_params:
+            # query_object[
+            #     "online_class__start_time__lte"
+            # ] = request.query_params.get("end_date")
+            query_object[
+                "online_class__start_time__date__range"
+            ] = [request.query_params.get("start_date"), request.query_params.get("end_date")]
+
+        if 'class_type' in request_params:
+            query_object['online_class__class_type'] = (request.query_params.get("class_type"))
+
+        if 'is_completed' in request_params:
+            query_object['online_class__end_time__lte'] = dtt.date.today()
+
+        if "is_aol" in request_params:
+            if request.query_params.get("is_aol") == '0':
+                query_object['online_class__is_aol'] = False
+                if "course" in request_params:
+                    query_object["online_class__batch__course_id"] = request_params.get('course')
+                if "batch_limit" in request_params:
+                    query_object['online_class__join_limit'] = (request.query_params.get("batch_limit"))
+            else:
+                query_object['online_class__is_aol'] = True
+            if "course" in request_params:
+                query_object["online_class__aol_batch__course_id"] = request_params.get('course')
+            if "batch_limit" in request_params:
+                query_object['online_class__aol_batch__batch_size'] = (request.query_params.get("batch_limit"))
+
+        # if "aol_batch" in request_params:
+        #     query_object['online_class__aol_batch__id__in'] = request_params.get('aol_batch').split(',')
+
+        zoom_meeting_instance = ZoomMeeting.objects.filter(
+            **query_object
+        ).distinct("online_class_id").order_by("online_class_id")
+
+        class_records = get_page(
+            request_params.get("page_number"),
+            request_params.get("page_size"),
+            zoom_meeting_instance.count(),
+            zoom_meeting_instance
+        )
+        final_dict = dict()
+        data_list = list()
+
+        class_records_ser = ZoomMeetingSerializer(
+            class_records,
+            many=True).data
+
+        for (i, moddata) in enumerate(class_records):
+            aol_batch = None
+            batch = None
+            cource_id = None
+            seat_left = None
+            tutor_id = None
+            email = None
+            roles = None
+            if moddata is not None and moddata.tutor is not None:
+                tutor_id = moddata.tutor.id
+                email = moddata.tutor.user.email
+                roles = moddata.tutor.roles.id
+
+            if moddata.online_class.aol_batch:
+                aol_batch = moddata.online_class.aol_batch.id
+                cource_id = moddata.online_class.aol_batch.course.id
+                seat_left = moddata.online_class.aol_batch.seat_left
+                tutor_id = moddata.online_class.aol_batch.teacher.user.id
+                email = moddata.online_class.aol_batch.teacher.user.email
+                roles = moddata.online_class.aol_batch.teacher.roles.id
+            if moddata.online_class.batch:
+                aol_batch = moddata.online_class.batch.id
+                cource_id = moddata.online_class.batch.course.id
+
+            aol_batch = aol_batch
+            cource_id = cource_id
+
+            data_list.append({
+                'id': moddata.id,
+                'presenter_url': moddata.presenter_url,
+                'join_url': moddata.join_url,
+                'is_meeting_cancelled': moddata.is_meeting_canceled,
+                'online_class': {
+                    'id': moddata.online_class.id,
+                    'batch_id': batch,
+                    'seat_left': seat_left,
+                    'teacher': {"tutor_id": tutor_id, "email": email, "roles": roles},
+                    'aol_batch_id': aol_batch,
+                    'cource_id': cource_id,
+                    'title': moddata.online_class.title,
+                    'start_time': moddata.online_class.start_time,
+                    'end_time': moddata.online_class.end_time,
+                    'is_canceled': moddata.is_canceled,
+                    'question_paper_id': moddata.online_class.quiz_test_paper
+                }
+            })
+        final_dict["count"] = zoom_meeting_instance.count()
+        final_dict["total_pages"] = get_page_count(
+            zoom_meeting_instance.count(), request_params.get("page_size")
+        )
+        final_dict["current_page"] = request_params.get("page_number")
+        final_dict["page_size"] = request_params.get("page_size")
+        final_dict["current_server_time"] = dtt.datetime.today().strftime("%Y-%m-%d %H:%M:%S")
+        final_dict['class_status'] = request.query_params.get("class_status")
+        date = dtt.datetime.today().date()
+        classes_dict = {"today": [], "upcoming": [], "completed": [], "cancelled": []}
+        recurring_class_dict = []
+        for i in data_list:
+            # class_id = str(i["id"])
+            # if class_id not in recurring_class_dict:
+            #     recurring_class_dict[class_id] = {"today":[],"upcoming":[],"completed":[],"cancelled":[]}
+            for recurring_class in i["is_meeting_cancelled"]:
+                if recurring_class["is_cancelled"] == False and recurring_class["date"] == str(date) and request.query_params.get("class_status") == '1':
+                    # today
+                    print(i,'iiiiiiiiiiiiiii')
+                    recurring_class_dict.append(i)
+                elif recurring_class["is_cancelled"] == False and recurring_class["date"] <= str(request.query_params.get("end_date")) and recurring_class["date"] >= request.query_params.get("start_date") and recurring_class['start_time'] >= str(dtt.datetime.now().time()) and request.query_params.get("class_status") == '2':
+                    # upcoming
+                    recurring_class_dict.append(i)
+                elif recurring_class["is_cancelled"] == False and recurring_class["date"] <= request.query_params.get("end_date") and recurring_class["date"] >= request.query_params.get("start_date") and recurring_class['start_time'] <= str(dtt.datetime.now().time()) and request.query_params.get("class_status") == '3':
+                    # completed
+                    recurring_class_dict.append(i)
+                if recurring_class["is_cancelled"] and request.query_params.get("class_status") == '4':
+                    # import pdb;pdb.set_trace()
+                    # cancelled
+                    recurring_class_dict.append(i)
+
+            # start_date = i["online_class"]["start_time"].date()
+            # if i["online_class"]["is_canceled"] == False and start_date == date:
+            #     classes_dict["today"].append(i)
+            # elif i["online_class"]["is_canceled"] == False and start_date > date:
+            #     classes_dict["upcoming"].append(i)
+            # elif i["online_class"]["is_canceled"] == False and start_date < date:
+            #     classes_dict["completed"].append(i)
+            # if i["online_class"]["is_canceled"]:
+            #     classes_dict["cancelled"].append(i)
+        if "v3" in request.META['PATH_INFO']:
+            final_dict["data"] = recurring_class_dict
+        else:
+            final_dict["data"] = data_list
+
+        return Response(final_dict, status=200)

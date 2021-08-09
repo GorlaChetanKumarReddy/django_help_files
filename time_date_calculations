@@ -1,3 +1,6 @@
 today_date = datetime.date.today()
 before_three_date = datetime.datetime.now() - datetime.timedelta(hours=72)
 before_one_date = datetime.datetime.now() - datetime.timedelta(hours=24)
+
+//get before one day
+datetime.date.today() - datetime.timedelta(1)

@@ -1,0 +1,8 @@
+                print(recurring_class['start_time'], 'start_time')
+                print(str(dtt.datetime.now().time()), 'intime')
+                
+                
+   //teacher permission in erp project             
+         Teacher View
+//subtract one day      
+datetime.date.today() - datetime.timedelta(1)
