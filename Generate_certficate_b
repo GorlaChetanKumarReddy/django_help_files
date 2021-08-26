@@ -1,0 +1,174 @@
+import os
+import pdfkit
+import sys
+import threading
+import time
+import boto3
+from erp_revamp.settings import APP_ENV
+import io
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.template.loader import render_to_string
+from django.conf import settings
+from erp_revamp.settings.base import SECRET_KEY
+from django.contrib.auth.models import User
+from django.template.loader import get_template 
+from django.http import HttpResponse
+from boto3.session import Session
+from .serializers import get_user_plans
+from sparklebox_school.models import *
+from datetime import date,timedelta,datetime
+
+ACCESS_KEY = os.environ["AWS_ACCESS_KEY_ID"]
+SECRET_KEY = os.environ["AWS_SECRET_ACCESS_KEY"]
+BUCKET_NAME = os.environ["AWS_STORAGE_BUCKET_NAME"]
+
+
+if APP_ENV == 'dev':
+    from erp_revamp.settings.dev import MEDIA_ROOT
+else:
+    from erp_revamp.settings.prod import MEDIA_ROOT
+
+MEDIA_URL = MEDIA_ROOT
+
+
+def upload_to_aws(pdf, file_name):
+    file_name = file_name.replace(" ", "")
+    s3 = Session().resource("s3")
+    bucket = s3.Bucket(BUCKET_NAME)
+    if APP_ENV=='prod':
+        key = 'prod'
+        path = '/media/' + key + '/' + 'sparkleboxschool_certificates/'+file_name
+    else:
+        key = 'dev'
+        path = '/media/' + key + '/' + 'sparkleboxschool_certificates/'+file_name
+    
+    with open(pdf, 'rb') as myfile:
+        buf = io.BytesIO(myfile.read())
+    bucket.upload_fileobj(buf, path,ExtraArgs={'ACL': 'public-read'}, Callback=ProgressPercentage(file_name, buf))
+    print(path)
+    url_path = MEDIA_URL[:-7] + path
+    return url_path
+
+
+def get_bufsize(buf, chunk=1024):
+    start = buf.tell()
+    try:
+        size = 0
+        while True:
+            out = buf.read(chunk)
+            if out:
+                size += chunk
+            else:
+                break
+        return size
+    finally:
+        buf.seek(start)
+
+
+class ProgressPercentage:
+    def __init__(self, filename, buf):
+        self._filename = filename
+        self._size = float(get_bufsize(buf))
+        self._seen_so_far = 0
+        self._lock = threading.Lock()
+        self.start = None
+        self.percent = 0.0
+
+    def __call__(self, bytes_amount):
+        with self._lock:
+            if not self.start:
+                self.start = time.monotonic()
+            self._seen_so_far += bytes_amount
+            percentage = (self._seen_so_far / self._size) * 100
+            sys.stdout.write(
+                "\r%s  %s of %s  (%.2f%% done, %.2fs elapsed\n" % (
+                    self._filename, self._seen_so_far, self._size,
+                    percentage, time.monotonic() - self.start))
+            
+
+
+def generate_certificate(user_id):
+    """ Function to generate the centificate """
+    media = settings.MEDIA_ROOT
+    user = User.objects.get(id=user_id)
+    enrol_user = user.main_user
+    grade = ''
+    plan_type = ''
+    try:
+        plan = user.userplanssubscriptions_set.last()
+    except:
+        plan = ''
+    if plan:
+        if not plan.plan_name:
+            plan_id = plan.plan_id
+            plans = get_user_plans([plan_id])
+            data = plans['result']
+            if data:
+                plan_details = data[0]
+                grade = plan_details['plan_name']
+                plan_type = plan_details['plan_type_name']
+        else:
+            grade = plan.plan_name
+        
+    data = {
+        "userName": enrol_user.name.capitalize(),
+        "courseName": grade,
+        'plan_type': plan_type,
+        "startDate": datetime.now().date(),
+        "endDate": enrol_user.batch_start_date,
+        'Signature':'Sparklebox School Team'
+    }
+    pdf_file_name = enrol_user.name+'_certificate.pdf'
+    template = get_template("certificate/certificate.html")
+    context = data  
+    html = template.render(context)  
+    pdfkit.from_string(html,pdf_file_name)
+    pdf = open(pdf_file_name)
+    # response = HttpResponse(pdf.read(), content_type='application/pdf') 
+    # response['Content-Disposition'] = 'attachment; filename=output.pdf'
+    pdf.close()
+    
+    get_file_path = upload_to_aws(pdf_file_name, pdf_file_name)
+            
+    os.remove(pdf_file_name)  
+    enrol_user.user_certificate = get_file_path
+    enrol_user.save()
+    return get_file_path 
+
+class GenerateCertificate(APIView):
+
+    def get(self, request):
+        """ For generate certificate and upload to s3
+        """
+        user_id = self.request.query_params.get("user_id")
+        user = User.objects.get(id=user_id)
+        enrol_user = user.main_user
+        user_videos = UserVideos.objects.filter(user_id=user,is_watched=False)
+        
+        if enrol_user.user_certificate:
+            response ={
+                'status':status.HTTP_201_CREATED,
+                'message':'You have got certificate already',
+                'result':enrol_user.user_certificate,
+            }
+            return Response(response)
+        if user_videos:
+            count = user_videos.count()
+            response ={
+                'status':status.HTTP_400_BAD_REQUEST,
+                'message':'You have not watched '+str(count)+' videos. please watch those videos to get certificate',
+                'result':[],
+            }
+            return Response(response)
+        urls = generate_certificate(user_id)
+        message = "Certicate generated Successfully"
+        response ={
+            'status':status.HTTP_201_CREATED,
+            'message':message,
+            'result':urls,
+        }
+        return Response(response)
+
+
