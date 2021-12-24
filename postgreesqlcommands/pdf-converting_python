@@ -3,5 +3,8 @@
 sudo su - postgres
 #for create database
 createdb mydb
+//else
+sudo -u postgres psql
 
+/l
 
