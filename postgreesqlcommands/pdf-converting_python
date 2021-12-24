@@ -5,6 +5,8 @@ sudo su - postgres
 createdb mydb
 //else
 sudo -u postgres psql
+#for create
+create database agri_dev;
 
 /l
 
