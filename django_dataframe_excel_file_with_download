@@ -1,0 +1,74 @@
+class Get_branch_wise_and_role_wise(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        requested_params = self.request.query_params
+        branch = requested_params.get('branch')
+        if branch:
+            branch = branch.split(',')
+        role = requested_params.get('role')
+        if role:
+            role = role.split(',')
+
+        if not role and branch:
+            responce = {
+                "status_code": status.HTTP_400_BAD_REQUEST,
+                "message": "please provide branch and role id"
+            }
+            return Response(responce)
+
+        def get_user_details():
+            columns = [
+                'FirstName',
+                'LastName',
+                'Erp',
+                'Email',
+                'PhoneNumber',
+                'RegisteredDate',
+                'branchh',
+                'role',
+                'is_activee',
+            ]
+            queryset_filter = CustomerProfile.objects.all()
+
+
+            customer_queryset = queryset_filter.filter(roles_category_id__in=role,branch__id__in=branch).annotate(
+                FirstName=F("user__first_name"),
+                LastName=F("user__last_name"),
+                Erp=F("user__username"),
+                Email=F("user__email"),
+                PhoneNumber=F("phone_number"),
+                RegisteredDate=F("user__date_joined"),
+                branchh=F("branch__branch_name"),
+                role=F("roles_category__name"),
+                is_activee=Case(
+                    When(is_active=False, then=False),
+                    When(is_active=True, then=True),
+                    default=False,
+                    output_field=BooleanField()
+                )
+            ).values(
+                'FirstName',
+                'LastName',
+                'Erp',
+                'Email',
+                'PhoneNumber',
+                'RegisteredDate',
+                'branchh',
+                'role',
+                'is_activee',
+            )
+            df = pd.DataFrame(list(customer_queryset), columns=columns)
+            df['is_activee'] = df['is_activee'].replace({True: 'Yes', False: 'No'})
+            for col in df.select_dtypes(['datetimetz']).columns:
+                df[col] = df[col].dt.tz_convert(None)
+            # df.to_excel('users_lists.xlsx')
+            return df
+
+        users_list_df = get_user_details()
+        response = HttpResponse(content_type="text/ms-excel")
+        response[
+            "Content-Disposition"
+        ] = 'attachment; filename="Branch_wise_and_role_wise_UserList.xlsx"'
+        users_list_df.to_excel(response)
+        return response
